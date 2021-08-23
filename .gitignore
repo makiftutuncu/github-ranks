@@ -1,4 +1,8 @@
+.bloop
 .bsp
 .idea
+.metals
+.vscode
 target
 *.class
+metals.sbt
