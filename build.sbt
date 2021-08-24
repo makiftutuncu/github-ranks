@@ -1,6 +1,6 @@
 name         := "github-ranks"
 version      := "0.1"
-scalaVersion := "3.0.1"
+scalaVersion := "2.13.6"
 
 val catsEffectVersion      = "3.2.3"
 val circeVersion           = "0.14.1"
