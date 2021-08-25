@@ -2,10 +2,10 @@ package dev.akif.githubranks
 package github.api
 
 import common.{Config, Errors, TraverseInParallelOver}
-import github.data.{AnonymousContributor, Contributor, Repository}
+import github.data.{Contributor, Repository}
 
 import cats.effect.IO
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.StrictLogging
 import io.circe.{Decoder, Json}
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec._
@@ -23,12 +23,10 @@ import scala.util.matching.Regex
  * @param config Configuration of GitHub
  */
 class GitHubClient(private val http: Client[IO],
-                   private val config: Config.GitHub) extends GitHubAPI with LazyLogging {
-  private val apiHost: Uri = uri"https://api.github.com"
-  private val linkHeaderLastPageRegex: Regex = (s"<https:\\/\\/api\\.github\\.com\\/.+page=(\\d+)&per_page=" + config.perPage + ">; rel=\"last\"").r
+                   private val config: Config.GitHub) extends GitHubAPI with StrictLogging {
+  import GitHubClient.{logger => _, _}
 
-  private implicit val anonymousOrRealContributorDecoder: Decoder[Either[AnonymousContributor, Contributor]] =
-    Decoder[AnonymousContributor].either(Decoder[Contributor])
+  private val linkHeaderLastPageRegex: Regex = (s"<https:\\/\\/api\\.github\\.com.+page=(\\d+)&per_page=" + config.perPage + ">; rel=\"last\"").r
 
   override def repositoriesOfOrganization(organization: String): IO[List[Repository]] =
     paginatedGetRequest(
@@ -37,10 +35,10 @@ class GitHubClient(private val http: Client[IO],
       page              = 1,
       lastPage          = None,
       customStatusCheck = {
-        case r if r.status == Status.NoContent =>
+        case Status.NoContent(_) =>
           IO(logger.warn(s"Organization '$organization' has no repositories")) *> IO(List.empty)
 
-        case r if r.status == Status.NotFound =>
+        case Status.NotFound(_) =>
           IO.raiseError(Errors.OrganizationNotFound(organization))
       },
       parse = { response =>
@@ -59,17 +57,14 @@ class GitHubClient(private val http: Client[IO],
       page              = 1,
       lastPage          = None,
       customStatusCheck = {
-        case r if r.status == Status.NoContent =>
+        case Status.NoContent(_) =>
           IO(logger.warn(s"Repository '$organization/$repository' has no contributors")) *> IO(List.empty)
 
-        case r if r.status == Status.NotFound =>
-          IO.raiseError(Errors.RepositoryNotFound(repository))
+        case Status.NotFound(_) =>
+          IO.raiseError(Errors.RepositoryNotFound(s"$organization/$repository"))
       },
       parse = { response =>
-        response
-          .as[List[Either[AnonymousContributor, Contributor]]]
-          .map(es => es.map(e => e.fold(ac => ac.toContributor, identity)))
-          .handleErrorWith { e =>
+        response.as[List[Contributor]].handleErrorWith { e =>
               failWithResponseDetails(
                 response, s"Failed to get contributors of repository '$organization/$repository' from GitHub", Some(e)
               )
@@ -77,7 +72,7 @@ class GitHubClient(private val http: Client[IO],
       }
     ).handleErrorWith {
       case e: Errors.APIError if e.message.contains("contributor list is too large") =>
-        IO(logger.warn(s"'$organization/$repository' has too many contributors to list via API, skipping.")) *>
+        IO(logger.warn(s"Repository '$organization/$repository' has too many contributors to list via API, skipping.")) *>
         IO(List.empty)
 
       case e =>
@@ -141,13 +136,29 @@ class GitHubClient(private val http: Client[IO],
 
             case Some(lastPage) =>
               // Get subsequent pages in parallel and collect results.
-              val subsequentPages = ((page + 1) to lastPage).toList
-              TraverseInParallelOver(subsequentPages) { currentPage =>
-                paginatedGetRequest(action, uri, currentPage, Some(lastPage), customStatusCheck, parse)
+              for {
+                firstPage       <- parse(response)
+                pageNumbers      = ((page + 1) to lastPage).toList
+                subsequentPages <- TraverseInParallelOver(pageNumbers) { currentPage =>
+                                     paginatedGetRequest(
+                                       action,
+                                       uri,
+                                       currentPage,
+                                       Some(lastPage),
+                                       customStatusCheck,
+                                       parse
+                                     )
+                                   }
+              } yield {
+                firstPage ++ subsequentPages
               }
           }
       }
     }
+}
+
+object GitHubClient extends StrictLogging {
+  val apiHost: Uri = uri"https://api.github.com"
 
   /**
    * Checks given response for a rate limit error

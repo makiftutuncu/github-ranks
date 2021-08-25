@@ -49,10 +49,10 @@ object InMemoryGitHubAPI {
         ),
       repositoriesAndContributors =
         Map(
-          repository1 -> List(Contributor(login1, 1), Contributor(login2, 2)),
-          repository2 -> List(Contributor(login1, 1)),
-          repository3 -> List(Contributor(login3, 5)),
-          repository4 -> List(Contributor(login2, 1), Contributor(login4, 4))
+          repository1 -> List(Contributor.Known(login1, 1), Contributor.Known(login2, 2)),
+          repository2 -> List(Contributor.Known(login1, 1)),
+          repository3 -> List(Contributor.Known(login3, 5)),
+          repository4 -> List(Contributor.Known(login2, 1), Contributor.Known(login4, 4))
         )
     )
 }

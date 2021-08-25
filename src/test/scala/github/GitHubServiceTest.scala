@@ -31,7 +31,7 @@ class GitHubServiceTest extends CatsEffectSuite {
   }
 
   test("Getting contributors of organization returns unique contributors sorted descending by their total contributions") {
-    val expected = List(Contributor(login3, 5), Contributor(login4, 4), Contributor(login2, 1))
+    val expected = List(Contributor.Known(login3, 5), Contributor.Known(login4, 4), Contributor.Known(login2, 1))
 
     assertIO(service.contributorsOfOrganization(organization2), expected)
   }
@@ -65,9 +65,9 @@ class GitHubServiceTest extends CatsEffectSuite {
   }
 
   test("Grouping and sorting contributors returns unique contributors sorted descending by their total contributions") {
-    val contributors = List(Contributor(login2, 2), Contributor(login1, 2), Contributor(login3, 6))
+    val contributors = List(Contributor.Known(login2, 2), Contributor.Known(login1, 2), Contributor.Known(login3, 6))
 
-    val expected = List(Contributor(login3, 6), Contributor(login1, 2), Contributor(login2, 2))
+    val expected = List(Contributor.Known(login3, 6), Contributor.Known(login1, 2), Contributor.Known(login2, 2))
 
     assertIO(service.groupAndSortContributors(contributors), expected)
   }

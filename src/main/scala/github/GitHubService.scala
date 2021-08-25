@@ -49,6 +49,7 @@ class GitHubService(private val api: GitHubAPI) {
    * @return List of repositories under given organization or a failed IO in case of an error
    */
   def repositoriesOfOrganization(organization: String): IO[List[Repository]] =
+    // Improvement: this could be cached here to avoid HTTP requests
     api.repositoriesOfOrganization(organization)
 
   /**
@@ -63,6 +64,7 @@ class GitHubService(private val api: GitHubAPI) {
    *         or a failed IO in case of an error
    */
   def contributorsOfRepository(organization: String, repository: String): IO[List[Contributor]] =
+    // Improvement: this could be cached here to avoid HTTP requests
     api.contributorsOfRepository(organization, repository)
 
   /**
@@ -75,9 +77,12 @@ class GitHubService(private val api: GitHubAPI) {
   def groupAndSortContributors(contributors: List[Contributor]): IO[List[Contributor]] =
     IO {
       contributors
-        .groupMapReduce(_.login)(_.contributions)(_ + _)
+        .groupMapReduce({
+          case k: Contributor.Known     => k.login
+          case a: Contributor.Anonymous => a.toKnown.login
+        })(_.contributions)(_ + _)
         .toList
-        .map { case (login, totalContributions) => Contributor(login, totalContributions) }
+        .map { case (login, totalContributions) => Contributor.Known(login, totalContributions) }
         .sortBy(cs => (cs.contributions * -1, cs.login))
     }
 }
