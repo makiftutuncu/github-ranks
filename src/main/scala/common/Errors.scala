@@ -97,6 +97,18 @@ object Errors {
   }
 
   /**
+   * Error to be used when a config is invalid
+   *
+   * @param config Key of the config
+   * @param value  Value of the config that is invalid
+   */
+  case class InvalidConfig(config: String, value: Any) extends APIError(
+    s"Invalid configuration value '$value' at '$config'"
+  ) {
+    override val code: Int = Status.InternalServerError.code
+  }
+
+  /**
    * Error to be used when an unknown/unhandled error is encountered
    *
    * @param cause Cause of the failure

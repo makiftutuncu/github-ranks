@@ -1,17 +1,17 @@
 package dev.akif.githubranks
 
-import common.Errors
+import common.{Config, Errors}
 import github.GitHubService
 import github.api.GitHubClient
 
 import cats.effect.{ExitCode, IO, IOApp}
-import com.comcast.ip4s.{Host, Port}
 import com.typesafe.scalalogging.LazyLogging
 import org.http4s._
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.implicits._
 import org.http4s.server.Router
+import pureconfig._
 
 import scala.util.control.NonFatal
 
@@ -27,11 +27,11 @@ object Main extends IOApp with LazyLogging {
 
   override def run(args: List[String]): IO[ExitCode] =
     for {
-      host <- IO.fromOption(Host.fromString("localhost"))(new IllegalArgumentException("Invalid host!"))
-      port <- IO.fromOption(Port.fromInt(8080))(new IllegalArgumentException("Invalid port!"))
-
+      config   <- IO(ConfigSource.default.loadOrThrow[Config])
+      host     <- config.server.makeHost
+      port     <- config.server.makePort
       exitCode <- EmberClientBuilder.default[IO].build.use { http =>
-        val gitHubAPI      = new GitHubClient(http, "GH_TOKEN", 50)
+        val gitHubAPI      = new GitHubClient(http, config.github)
         val gitHubService  = new GitHubService(gitHubAPI)
         val httpApp        = Router("/" -> gitHubService.route).orNotFound
 

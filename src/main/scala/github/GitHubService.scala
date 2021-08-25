@@ -1,10 +1,10 @@
 package dev.akif.githubranks
 package github
 
+import common.TraverseInParallelOver
 import github.api.GitHubAPI
 import github.data.{Contributor, Repository}
 
-import cats.Parallel
 import cats.effect.IO
 import org.http4s._
 import org.http4s.circe.CirceEntityCodec._
@@ -35,7 +35,7 @@ class GitHubService(private val api: GitHubAPI) {
   def contributorsOfOrganization(organization: String): IO[List[Contributor]] =
     for {
       repositories       <- repositoriesOfOrganization(organization)
-      contributors       <- Parallel.parFlatTraverse(repositories)(r => contributorsOfRepository(organization, r.name))
+      contributors       <- TraverseInParallelOver(repositories)(r => contributorsOfRepository(organization, r.name))
       sortedContributors <- groupAndSortContributors(contributors)
     } yield {
       sortedContributors

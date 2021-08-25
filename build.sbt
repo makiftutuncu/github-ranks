@@ -6,12 +6,15 @@ val catsEffectVersion      = "3.2.3"
 val circeVersion           = "0.14.1"
 val http4sVersion          = "1.0.0-M24"
 val logbackVersion         = "1.2.5"
+val pureconfigVersion      = "0.16.0"
+val scalaLoggingVersion    = "3.9.4"
+
 val munitCatsEffectVersion = "1.0.5"
 val munitVersion           = "0.7.28"
-val scalaLoggingVersion    = "3.9.4"
 
 libraryDependencies ++= Seq(
   "ch.qos.logback"              % "logback-classic"     % logbackVersion,
+  "com.github.pureconfig"      %% "pureconfig"          % pureconfigVersion,
   "io.circe"                   %% "circe-core"          % circeVersion,
   "io.circe"                   %% "circe-generic"       % circeVersion,
   "io.circe"                   %% "circe-parser"        % circeVersion,

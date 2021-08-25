@@ -1,10 +1,9 @@
 package dev.akif.githubranks
 package github.api
 
-import common.Errors
+import common.{Config, Errors, TraverseInParallelOver}
 import github.data.{AnonymousContributor, Contributor, Repository}
 
-import cats.Parallel
 import cats.effect.IO
 import com.typesafe.scalalogging.LazyLogging
 import io.circe.{Decoder, Json}
@@ -20,15 +19,13 @@ import scala.util.matching.Regex
 /**
  * GitHub client that implements [[GitHubAPI]], using GitHub REST API v3
  *
- * @param http    HTTP client to make request
- * @param token   OAuth token to use for requests
- * @param perPage Number of items to receive in a page for paginated requests
+ * @param http   HTTP client to make request
+ * @param config Configuration of GitHub
  */
 class GitHubClient(private val http: Client[IO],
-                   private val token: String,
-                   private val perPage: Int) extends GitHubAPI with LazyLogging {
+                   private val config: Config.GitHub) extends GitHubAPI with LazyLogging {
   private val apiHost: Uri = uri"https://api.github.com"
-  private val linkHeaderLastPageRegex: Regex = (s"<https:\\/\\/api\\.github\\.com\\/.+page=(\\d+)&per_page=" + perPage + ">; rel=\"last\"").r
+  private val linkHeaderLastPageRegex: Regex = (s"<https:\\/\\/api\\.github\\.com\\/.+page=(\\d+)&per_page=" + config.perPage + ">; rel=\"last\"").r
 
   private implicit val anonymousOrRealContributorDecoder: Decoder[Either[AnonymousContributor, Contributor]] =
     Decoder[AnonymousContributor].either(Decoder[Contributor])
@@ -110,10 +107,10 @@ class GitHubClient(private val http: Client[IO],
     IO(lastPage.fold(logger.info(action))(lp => logger.info(s"$action ($page/$lp)"))) *>
     http.run(
       Request[IO](
-        uri     = uri +? ("page" -> page) +? ("per_page" -> perPage),
+        uri     = uri +? ("page" -> page) +? ("per_page" -> config.perPage),
         headers = Headers(
           Header.Raw(CIString("Accept"), "application/vnd.github.v3+json"),
-          Header.Raw(CIString("Authorization"), s"Bearer $token"),
+          Header.Raw(CIString("Authorization"), s"Bearer ${config.token}"),
         )
       )
     ).use { response =>
@@ -144,7 +141,8 @@ class GitHubClient(private val http: Client[IO],
 
             case Some(lastPage) =>
               // Get subsequent pages in parallel and collect results.
-              Parallel.parFlatTraverse(((page + 1) to lastPage).toList) { currentPage =>
+              val subsequentPages = ((page + 1) to lastPage).toList
+              TraverseInParallelOver(subsequentPages) { currentPage =>
                 paginatedGetRequest(action, uri, currentPage, Some(lastPage), customStatusCheck, parse)
               }
           }
