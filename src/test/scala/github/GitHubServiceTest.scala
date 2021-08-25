@@ -1,7 +1,7 @@
 package dev.akif.githubranks
 package github
 
-import Errors.{OrganizationNotFound, RepositoryNotFound}
+import common.Errors.{OrganizationNotFound, RepositoryNotFound}
 import github.api.InMemoryGitHubAPI
 import github.api.InMemoryGitHubAPI._
 import github.data.{Contributor, Repository}
@@ -49,7 +49,7 @@ class GitHubServiceTest extends CatsEffectSuite {
   }
 
   test("Getting contributors of an invalid repository fails") {
-    interceptIO[RepositoryNotFound](service.contributorsOfRepository("invalid")).map { notFound =>
+    interceptIO[RepositoryNotFound](service.contributorsOfRepository(organization1, "invalid")).map { notFound =>
       assertEquals(notFound.repository, "invalid")
     }
   }
@@ -57,7 +57,7 @@ class GitHubServiceTest extends CatsEffectSuite {
   test("Getting contributors of a repository returns list of contributors") {
     val expected = api.repositoriesAndContributors(repository1)
 
-    assertIO(service.contributorsOfRepository(repository1), expected)
+    assertIO(service.contributorsOfRepository(organization1, repository1), expected)
   }
 
   test("Grouping and sorting empty contributors returns empty contributors") {

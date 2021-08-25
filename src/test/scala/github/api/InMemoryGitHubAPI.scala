@@ -1,10 +1,17 @@
 package dev.akif.githubranks
 package github.api
 
+import common.Errors
 import github.data.{Contributor, Repository}
 
 import cats.effect.IO
 
+/**
+ * GitHub client that contains some in-memory data for testing
+ *
+ * @param organizationsAndRepositories Map of organization names to their repositories
+ * @param repositoriesAndContributors  Map of repository names to their contributors
+ */
 class InMemoryGitHubAPI(val organizationsAndRepositories: Map[String, List[Repository]],
                         val repositoriesAndContributors: Map[String, List[Contributor]]) extends GitHubAPI {
   override def repositoriesOfOrganization(organization: String): IO[List[Repository]] = {
@@ -14,7 +21,7 @@ class InMemoryGitHubAPI(val organizationsAndRepositories: Map[String, List[Repos
     }
   }
 
-  override def contributorsOfRepository(repository: String): IO[List[Contributor]] =
+  override def contributorsOfRepository(organization: String, repository: String): IO[List[Contributor]] =
     repositoriesAndContributors.get(repository) match {
       case None => IO.raiseError(Errors.RepositoryNotFound(repository))
       case Some(repositories) => IO.pure(repositories)
