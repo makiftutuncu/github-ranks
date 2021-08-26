@@ -27,9 +27,16 @@ libraryDependencies ++= Seq(
 
   "org.scalameta" %% "munit"               % munitVersion           % Test,
   "org.typelevel" %% "munit-cats-effect-3" % munitCatsEffectVersion % Test
-
 )
 
 testFrameworks += new TestFramework("munit.Framework")
 
 idePackagePrefix.withRank(KeyRanks.Invisible) := Some("dev.akif.githubranks")
+
+enablePlugins(JavaAppPackaging)
+enablePlugins(DockerPlugin)
+enablePlugins(AshScriptPlugin)
+
+Compile / mainClass := Some("dev.akif.githubranks.Main")
+dockerBaseImage     := "adoptopenjdk/openjdk16:x86_64-alpine-jre-16.0.1_9"
+dockerExposedPorts  := Seq(8080)
